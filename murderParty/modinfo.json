@@ -1,0 +1,10 @@
+{
+    "enabled" : true,
+    "context" : "server",
+    "identifier" : "info.nanodesu.murderparty",
+    "display_name" : "Murder Party",
+    "description" : "Kill your targets",
+    "author" : "Cola_Colin",
+    "version" : "0.1",
+    "signature" : "(not yet implemented)"
+}

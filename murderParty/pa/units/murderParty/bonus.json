@@ -1,0 +1,67 @@
+{
+	"base_spec":"/pa/units/land/base_structure/base_structure.json",
+    "display_name": "Bonus",
+    "description": "Bonus",
+    "display_group": 50,
+    "display_index": 40,
+    "max_health": 99999999999,
+    "build_metal_cost": 9999999999999,
+    "wreckage_health_frac": 0,
+    "spawn_layers": "WL_LandHorizontal",
+    "area_build_type": "Rect",
+    "area_build_separation": 1,
+    "production": {
+        "energy": 10000,
+		"metal": 100
+    },
+    "storage": {
+        "energy": 10000,
+        "metal": 300
+    }, 
+
+    "unit_types": [
+        "UNITTYPE_Structure",
+        "UNITTYPE_Basic",
+        "UNITTYPE_CmdBuild",
+        "UNITTYPE_FabBuild",
+        "UNITTYPE_FabAdvBuild",
+        "UNITTYPE_Economy"
+    ],
+
+    "physics": {
+        "type": "Structure",
+        "radius": 0.25,
+        "push_class": 0,
+        "air_friction": 1,
+        "allow_pushing": false,
+        "ignore_collisions": true
+    },
+    "recon": {
+        "observable": {
+            "layer": "surface_and_air",
+            "ignore_sight": true
+        },
+        "observer": {
+            "items": [
+                {
+                    "layer": "surface_and_air",
+                    "channel": "radar",
+                    "shape": "sphere",
+                    "radius": 2
+                }
+            ]
+        }
+    },
+    "model": [
+        {
+            "layer": "WL_LandHorizontal",
+            "filename": "/pa/units/land/land_mine/land_mine.papa"
+        }
+    ],
+    "mesh_bounds": [
+        4,
+        4,
+        1
+    ],
+    "TEMP_texelinfo": 2.37699
+}
