@@ -17,7 +17,7 @@
     "storage": {
         "energy": 10000,
         "metal": 300
-    }, 
+    },
 
     "unit_types": [
         "UNITTYPE_Structure",
@@ -39,7 +39,8 @@
     "recon": {
         "observable": {
             "layer": "surface_and_air",
-            "ignore_sight": true
+            "ignore_sight": true,
+            "ignore_radar": true
         },
         "observer": {
             "items": [

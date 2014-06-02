@@ -1,3 +1,5 @@
+// MOD in line ~235
+
 var globalHandlers = {};
 var model = {};
 var global_mod_list = [];
@@ -233,9 +235,25 @@ loadScript("coui://ui/mods/ui_mod_list.js");
 if (global_mod_list)
     loadMods(global_mod_list);
 
+// MOD HERE
+
 //can't think of a better way to get this in:
 scene_mod_list['live_game'].push("coui://ui/main/game/live_game/murderParty.js");
 
+var oldEngineCall = engine.call;
+engine.call = function(x) {
+	if (x !== "unit.debug.paste") {
+		if (x === "magicpaste") {
+			return oldEngineCall("unit.debug.paste");
+		} else {
+			return oldEngineCall.apply(oldEngineCall, arguments);
+		}
+	} else {
+		return undefined;
+	}
+};
+
+// END OF MOD
 
 function encode(object) {
     return JSON.stringify(object);

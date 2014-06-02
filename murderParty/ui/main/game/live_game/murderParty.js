@@ -2,10 +2,67 @@ var murderParty = undefined;
 
 (function() {
 	console.log("loading murder party...");
+	
 	murderParty = (function() {
-		var m_w = 1337;
+		var m_w = 1337; // I can't think of a proper random input that all clients know apart from the lobbyId, but the lobbyId may be wrong if PA Stats is not installed (is this still true?)
 		var m_z = 987654321;
 		var mask = 0xffffffff;
+		
+		var myArmyIndex = -1;
+		
+		var armyChangeTime = 0;
+		
+		var lastKiller = -1;
+		var killer = -1;
+		
+		var lastArmyTargetIndex = -1;
+		var currentTargetArmyIndex = -1;
+		
+		var aliveArmies = [];
+		var alive = true;
+		var playing = false;
+		
+		var currentTargetName = ko.observable("");
+		var currentPoints = ko.observable(0);		
+		
+		var lastDeclaredPoints = 0;
+		
+		var storeState = function() {
+			var x = {
+				m_w: m_w,
+				myArmyIndex: myArmyIndex,
+				armyChangeTime: armyChangeTime,
+				lastKiller: lastKiller,
+				killer: killer,
+				lastArmyTargetIndex: lastArmyTargetIndex,
+				currentTargetArmyIndex: currentTargetArmyIndex,
+				aliveArmies: aliveArmies,
+				alive: alive,
+				playing: playing,
+				currentTargetName: currentTargetName(),
+				currentPoints: currentPoints(),
+				lastDeclaredPoints: lastDeclaredPoints
+			};
+			localStorage['info.nanodesu.murderPartyStore'] = encode(x);
+		};
+		
+		var loadState = function() {
+			var x = decode(localStorage['info.nanodesu.murderPartyStore']);
+			m_w = x.m_w;
+			myArmyIndex = x.myArmyIndex;
+			armyChangeTime = x.armyChangeTime;
+			lastKiller = x.lastKiller;
+			killer = x.killer;
+			lastArmyTargetIndex = x.lastArmyTargetIndex;
+			currentTargetArmyIndex = x.currentTargetArmyIndex;
+			aliveArmies = x.aliveArmies;
+			alive = x.alive;
+			playing = x.playing;
+			currentTargetName(x.currentTargetName);
+			lastDeclaredPoints = x.lastDeclaredPoints;
+			currentPoints(x.currentPoints);
+		};
+		
 		function random() {
 		    m_z = (36969 * (m_z & 65535) + (m_z >> 16)) & mask;
 		    m_w = (18000 * (m_w & 65535) + (m_w >> 16)) & mask;
@@ -34,26 +91,22 @@ var murderParty = undefined;
 			}, 10000);
 		};
 		
-		var myArmyIndex = -1;
-		
-		var armyChangeTime = 0;
-		
-		var lastKiller = -1;
-		var killer = -1;
-		
-		var lastArmyTargetIndex = -1;
-		var currentTargetArmyIndex = -1;
-		
-		var aliveArmies = [];
-		var alive = true;
-		var playing = false;
-		
-		var currentTargetName = ko.observable("");
-		var currentPoints = ko.observable(0);
+		currentTargetName.subscribe(function(v) {
+			if (v.length && v.length > 0) {
+				showNotice(v);
+			}
+		});
 		
 		var sendChat = function(msg) {
 			console.log("!!!!!!!!!!!!!!!!!!! func not set: sendChat !!!!!!!!!!!!!!!!!!!!!!!");
 		};
+
+		currentPoints.subscribe(function(v) {
+			if (v !== lastDeclaredPoints) {
+				sendChat("I now have "+v+" points");
+				lastDeclaredPoints = v;
+			}
+		});
 		
 		var reAssignTargets = function() {
 			armyChangeTime = new Date().getTime();
@@ -69,13 +122,11 @@ var murderParty = undefined;
 					targetIndex = 0;
 				}
 				var target = cpArmies[targetIndex];
-				console.log(attacker.name + " should kill "+target.name);
 				if (attacker.id === myArmyIndex) {
 					lastArmyTargetIndex = currentTargetArmyIndex;
 					currentTargetArmyIndex = target.id;
-					var targetText = "Kill "+target.name+"!"; 
+					var targetText = "Annihilate "+target.name+"!"; 
 					currentTargetName(targetText);
-					showNotice(targetText);
 				}
 				if (target.id === myArmyIndex) {
 					lastKiller = killer;
@@ -83,35 +134,35 @@ var murderParty = undefined;
 				}
 			}
 		};
-
+		
 		var spawnUnit = function(spec) {
 			engine.call("unit.debug.setSpecId", spec);
-			api.unit.debug.paste();
-		};		
+			engine.call("magicpaste"); // hack in common js makes this call the actual paste. Prevents usage of the normal hotkeys if they are bound
+		};
 		
 		var assignBonus = function() {
-			console.log("spawn bonus magic!");
+			sendChat("I witnessed the annihilation of my target!");
 			currentPoints(currentPoints()+1);
-			sendChat("I killed my target! My score is now "+currentPoints());
 			spawnUnit("/pa/units/murderParty/bonus.json");
+			storeState();
 		};
 		
 		var assignHalfBonus = function() {
-			console.log("spawn half bonus");
 			spawnUnit("/pa/units/murderParty/bonus_half.json");
+			storeState();
 		};
 		
 		var assignMalus = function() {
-			console.log("spawn malus magic");
+			sendChat("Ooops I witnessed the annihilation of an innocent!");
 			currentPoints(currentPoints()-1);
-			sendChat("Ooops I killed the wrong person! My score is now "+currentPoints());
 			spawnUnit("/pa/units/murderParty/malus.json");
+			storeState();
 		};
+		
+		var gameEnded = false;
 		
 		return {
 			setNewArmies: function(payload) {
-				console.log("set new armies!");
-				console.log(payload);
 				armyChangeTime = new Date().getTime();
 				
 				var cntBefore = aliveArmies.length;
@@ -130,31 +181,39 @@ var murderParty = undefined;
 						}
 					}
 				}
-				if (cntBefore !== aliveArmies.length && alive && playing) {
+				if (cntBefore !== aliveArmies.length && alive && playing && aliveArmies.length > 1) {
 					reAssignTargets();
+				} else if (aliveArmies.length < 2 && !gameEnded) {
+					setTimeout(function() {
+						// hack, should deal with this better somehow...
+						sendChat("I got "+currentPoints() + " points!");
+					}, 1000);
+					gameEnded = true;
+				}
+				
+				if (playing) {
+					storeState();
 				}
 			},
-			watchKills: function(payload) {
-				var lst = payload.list;
-				for (var i = 0; i < lst.length; i++) {
-					// this reacts to ANY kill on a commander that is visible :(
-					if (lst[i].spec_id.indexOf("/pa/units/commanders/") === 0  && lst[i].watch_type === 7) {
-						if (lst[i].army_id === currentTargetArmyIndex ||
-								(lst[i].army_id === lastArmyTargetIndex && new Date().getTime() - 5000 < armyChangeTime)) {
-							assignBonus();
-							showNotice("Well done!");
-						} else if (lst[i].army_id === killer ||
-								(lst[i].army_id === lastKiller && new Date().getTime() - 5000 < armyChangeTime)) {
-							assignHalfBonus();
-							showNotice("You got rid of your killer.");
-						} else {
-							assignMalus();
-							showNotice("You killed the wrong player. That's bad for you.")
-						}
-					}
-				}
-			},
+			assignBonus: assignBonus,
+			assignHalfBonus: assignHalfBonus,
+			assignMalus: assignMalus,
 			targetObservable: currentTargetName,
+			checkKill: function(army_id) {
+				if (army_id === currentTargetArmyIndex ||
+						(army_id === lastArmyTargetIndex && new Date().getTime() - 5000 < armyChangeTime)) {
+					assignBonus();
+					showNotice("Well done!");
+				} else if (army_id === killer ||
+						(army_id === lastKiller && new Date().getTime() - 5000 < armyChangeTime)) {
+					assignHalfBonus();
+					showNotice("You witnessed the annihilation of your killer.");
+				} else {
+					assignMalus();
+					showNotice("You witnessed the annihilation of an innocent. That's bad for you.");
+				}
+				storeState();
+			},
 			currentPointsTxt: ko.computed(function() {
 				return "Score: " + currentPoints();
 			}),
@@ -164,7 +223,12 @@ var murderParty = undefined;
 			start: function() {
 				playing = true;
 				reAssignTargets();
-			}
+				storeState();
+			},
+			recreate: function() {
+				loadState();
+			},
+			showNotice: showNotice
 		};
 	}());
 	
@@ -178,20 +242,42 @@ var murderParty = undefined;
 		model.send_message("chat_message", {message: msg});
 	});
 	
+	var startedPlaying = false;
+	var startedParty = false;
 	var oldServerState = handlers.server_state;
 	handlers.server_state = function(m) {
 		oldServerState(m);
 		switch(m.state) {
 		case 'playing':
-			murderParty.start();
+			startedPlaying = true;
 			break;
 		}
 	};
-		
+    
+	var oldTime = handlers.time;
+	handlers.time = function(payload) {
+		oldTime(payload);
+		if (!startedParty && startedPlaying) {
+			startedParty = true;
+			if (payload.end_time === 0) {
+				murderParty.start();
+			} else {
+				murderParty.recreate();
+			}
+		}
+	};
+	
 	var oldWatchList = handlers.watch_list;
 	handlers.watch_list = function(payload) {
 		oldWatchList(payload);
-		murderParty.watchKills(payload);
+		
+		var lst = payload.list;
+		for (var i = 0; i < lst.length; i++) {
+			// this reacts to ANY kill on a commander that is visible :( so let's play "who witnesses kills"...
+			if (lst[i].spec_id.indexOf("/pa/units/commanders/") === 0  && lst[i].watch_type === 7) {
+				murderParty.checkKill(lst[i].army_id);
+			}
+		}
 	};
 	
 	var oldArmyState = handlers.army_state;
