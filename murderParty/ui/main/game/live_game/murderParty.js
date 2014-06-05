@@ -200,6 +200,9 @@ var murderParty = undefined;
 			assignMalus: assignMalus,
 			targetObservable: currentTargetName,
 			checkKill: function(army_id) {
+				if (!alive) {
+					return;
+				}
 				if (army_id === currentTargetArmyIndex ||
 						(army_id === lastArmyTargetIndex && new Date().getTime() - 5000 < armyChangeTime)) {
 					assignBonus();
