@@ -270,10 +270,7 @@ var murderParty = undefined;
 		}
 	};
 	
-	var oldWatchList = handlers.watch_list;
-	handlers.watch_list = function(payload) {
-		oldWatchList(payload);
-		
+	var processEvents = function(payload) {
 		var lst = payload.list;
 		for (var i = 0; i < lst.length; i++) {
 			// this reacts to ANY kill on a commander that is visible :( so let's play "who witnesses kills"...
@@ -282,6 +279,18 @@ var murderParty = undefined;
 			}
 		}
 	};
+	
+	if (typeOf alertsManager !== 'undefined') {
+		alertsManager.addListener(processEvents);
+	} else {
+		var oldWatchList = handlers.watch_list;
+		handlers.watch_list = function(payload) {
+			if (oldWatchList !== undefined) {
+				oldWatchList(payload);				
+			}
+			processEvents(payload);
+		};
+	}
 	
 	var oldArmyState = handlers.army_state;
 	handlers.army_state = function(payload) {

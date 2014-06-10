@@ -1,4 +1,4 @@
-// MOD in line ~235
+// MOD in line ~275
 
 var globalHandlers = {};
 var model = {};
@@ -170,6 +170,9 @@ function locUpdateDocument() {
 }
 
 function locInitInternal(localeString) {
+
+    localStorage.setItem('locale', encode(localeString));
+
     locNamespace = location.pathname.substr(0, location.pathname.lastIndexOf("."));
     locNamespace = locNamespace.substr(locNamespace.lastIndexOf('/') + 1);
     $.i18n.init({
@@ -195,18 +198,17 @@ function locInit() {
     // delay the ready event until this is done (we need loc available during initialization)
     $.holdReady(true);
 
-    // uses gEngineParams.locale value configured internally by engine at startup.  We do this instead
-    // of an engine call in this case because of latency concerns; much of the page load is blocked on
-    // on loc data load, and engine calls are tied to the client render loop, so a delay there could
-    // be problematic.
-    if (typeof gEngineParams !== 'undefined' && typeof gEngineParams.locale !== 'undefined') {
-        locInitInternal(gEngineParams.locale);
-    } else {
-        console.log("ERROR locInit: gEngineParams.locale value undefined; using engine call as a fallback");
+    var locale = decode(localStorage['locale']);
+
+    if (!locale && gEngineParams && !_.isUndefined(gEngineParams.locale))
+        locale = gEngineParams.locale;
+
+    if (_.isUndefined(locale))
         engine.call('loc.getCurrentLocale').then(function (data) {
             locInitInternal(data);
         });
-    }
+    else
+        locInitInternal(locale);
 }
 
 loadCSS("coui://ui/main/shared/css/boot.css");
@@ -227,6 +229,40 @@ function getCatalogItem(item) {
     }
 }
 
+function setLocale(locale) {
+    engine.call('loc.setCurrentLocale', locale);
+    api.game.debug.reloadScene(api.Panel.pageId);
+}
+
+function maybeSetLocale(locale) {
+    engine.call('loc.getCurrentLocale').then(function (data) {
+        if (locale !== data)
+            setLocale(locale);
+    });
+}
+
+function maybeSetLocaleFromStorage() {
+    $.holdReady(true);
+
+    var loaded = sessionStorage['has_loaded_locale'],
+        locale = decode(localStorage['locale']);
+
+    if (!loaded && locale) {
+        sessionStorage.setItem('has_loaded_locale', "true");
+
+        engine.call('loc.getCurrentLocale').then(function (data) {
+            if (locale !== data)
+                setLocale(locale);
+            else
+                $.holdReady(false);
+        });
+    }
+    else
+        $.holdReady(false);
+}
+
+if (api.Panel.pageName === 'game')
+    maybeSetLocaleFromStorage();
 
 locInit();
 
@@ -235,6 +271,7 @@ loadScript("coui://ui/mods/ui_mod_list.js");
 if (global_mod_list)
     loadMods(global_mod_list);
 
+	
 // MOD HERE
 
 //can't think of a better way to get this in:
@@ -253,8 +290,8 @@ engine.call = function(x) {
 	}
 };
 
-// END OF MOD
-
+// END OF MOD	
+	
 function encode(object) {
     return JSON.stringify(object);
 }
@@ -291,7 +328,7 @@ function decode(string) {
 
 function cleanupLegacyStorage() {
     for (var key in localStorage)
-        localStorage[key] = encode(decode(localStorage[key]));
+        localStorage.setItem(key, encode(decode(localStorage[key])));
 }
 
 /* from: http://webdesignfan.com/htmlspecialchars-in-javascript/ */
@@ -364,7 +401,7 @@ ko.extenders.local = function (target, option) {
     // write changes to storage
     target.subscribe(function (newValue) {
         if (!loading)
-            localStorage[option] = encode(newValue);
+            localStorage.setItem(option, encode(newValue));
     });
 
     // init from storage
@@ -391,7 +428,7 @@ ko.extenders.session = function (target, option) {
     // write changes to storage
     target.subscribe(function (newValue) {
         if (!loading)
-            sessionStorage[option] = encode(newValue);
+            sessionStorage.setItem(option, encode(newValue));
     });
 
     // init from storage
@@ -963,10 +1000,8 @@ $(document).ready(function () {
     // disable middle mouse scrolling
     $('body').mousedown(function (e) { if (e.button === 1) return false; });
 
-    if (api.Panel.pageName === 'game') {
-        apply_keybinds('general');
-        apply_keybinds('debugging');
-    }
+    if (api.Panel.pageName === 'game') 
+        modify_keybinds({ add: ['general', 'debugging'] });
 
     locUpdateDocument();
 

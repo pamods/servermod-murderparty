@@ -1,5 +1,5 @@
 {
-    "enabled" : true,
+    "enabled" : false,
     "context" : "server",
     "identifier" : "info.nanodesu.murderparty",
     "display_name" : "Murder Party",
