@@ -280,7 +280,7 @@ var murderParty = undefined;
 		}
 	};
 	
-	if (typeOf alertsManager !== 'undefined') {
+	if (typeof alertsManager !== 'undefined') {
 		alertsManager.addListener(processEvents);
 	} else {
 		var oldWatchList = handlers.watch_list;
